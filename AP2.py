@@ -4,12 +4,11 @@ plt.style.use('ggplot')
 
 
 pi = np.pi
-halfpi = pi / 2
-
-# Global variables
-l1 = 0.0
-l2 = 0.0
-trelwuser = np.array([0.0, 0.0, 0.0])
+s=0.3333
+deltat=O.2
+l1=0.5
+l2=0.5
+trelwuser = np.array([0.1, 0.2, 30.0])
 treswuser = np.array([0.0, 0.0, 0.0])
 srelbuser = np.array([0.0, 0.0, 0.0])
 trelw = np.zeros((2, 3))
@@ -32,7 +31,7 @@ nticks = 0
 sol = False
 ans = ''
 
-# Function to write a frame
+'''# Function to write a frame
 def write_frame(foo):
     for i in range(2):
         print("[", end="")
@@ -43,44 +42,57 @@ def write_frame(foo):
 # Function to write a vector
 def write_vect(foo):
     for i in range(3):
-        print(f"[{foo[i]:10.3f}]")
+        print(f"[{foo[i]:10.3f}]")'''
 
-# Function for atan2
-def at2(a, b):
-    return np.arctan2(a, b)
+def tmult(brela, crelb):
+    crela = np.dot(brela, crelb)
+    return crela
 
-# Function for matrix multiplication
-def tmult(brela, crelb, crela):
-    crela[:, 2] = brela[:, 2] + np.dot(brela[:, :2], crelb[:, 2])
-    crela[:, :2] = np.dot(brela[:, :2], crelb[:, :2].T)
+def tinvert(brela):
+    arelb = np.linalg.inv(brela)
+    return arelb
+
+
+def kin(theta):
+    T1 = np.array([[np.cos(theta[0]), -np.sin(theta[0]), 0],
+                   [np.sin(theta[0]), np.cos(theta[0]), 0],
+                   [0, 0, 1]])
+    T2 = np.array([[np.cos(theta[1]), -np.sin(theta[1]), l1],
+                   [np.sin(theta[1]), np.cos(theta[1]), 0],
+                   [0, 0, 1]])
+    wrelb = np.dot(T1, T2)
+
+    return wrelb
+
     
-# Function to invert a matrix
-def tinvert(brela, arelb):
-    arelb[0, :2] = brela[:, :2].T.flatten()
-    arelb[1, :2] = brela[:, 2].T.flatten()
-    arelb[:, 2] = -np.dot(brela[:, :2].T, brela[:, 2])
 
-# Function for kinematics
+'''# Function for kinematics
 def kin(theta, wrelb):
     beta = np.sum(theta)
     wrelb[0, 2] = l1 * np.cos(theta[0]) + l2 * np.cos(np.sum(theta[:2]))
     wrelb[1, 2] = l1 * np.sin(theta[0]) + l2 * np.sin(np.sum(theta[:2]))
     wrelb[0, :2] = [np.cos(beta), -np.sin(beta)]
-    wrelb[1, :2] = -wrelb[0, 1], wrelb[0, 0]
+    wrelb[1, :2] = -wrelb[0, 1], wrelb[0, 0]'''
 
 # Function to convert user form to matrix
-def utoi(uform, iform):
-    iform[:, 2] = uform[:2]
-    iform[0, :2] = np.cos(np.deg2rad(uform[2])), -np.sin(np.deg2rad(uform[2]))
-    iform[1, :2] = -iform[0, 1], iform[0, 0]
+def utoi(uform):
+    iform[0, 2] = uform[0]
+    iform[1, 2] = uform[1]
+    iform[0, 0] = np.cos(uform[2] * np.deg2rad(1))
+    iform[0, 1] = -np.sin(uform[2] * np.deg2rad(1))
+    iform[1, 0] = -iform[0, 1]
+    iform[1, 1] = iform[0, 0]
+    return iform
 
-# Function to convert matrix to user form
-def itou(iform, uform):
-    uform[:2] = iform[:, 2]
-    uform[2] = np.rad2deg(at2(iform[1, 0], iform[0, 0]))
+def itou(iform):
+    uform[0] = iform[0, 2]
+    uform[1] = iform[1, 2]
+    uform[2] = np.rad2deg(np.arctan2(iform[1, 0], iform[0, 0]))
+    return uform
+
 
 # Function for range normalization
-def range_(a):
+def range(a):
     a %= 2 * pi
     if a > pi:
         a -= 2 * pi
@@ -89,7 +101,7 @@ def range_(a):
     return a
 
 # Function for inverse kinematics
-def invk_in(wrelb, current, near, far):
+def invkin(wrelb):
     goal = itou(wrelb)
     goal[2] =np.deg2rad(goal[2])
     c2 = (goal[0] ** 2 + goal[1] ** 2 - l1 ** 2 - l2 ** 2) / (2.0 * l1 * l2)
@@ -99,13 +111,13 @@ def invk_in(wrelb, current, near, far):
     else:
         sol = True
     s2 = np.sqrt(1.0 - c2 ** 2)
-    near[1] = at2(s2, c2)
+    near[1] = np.arctan2(s2, c2)
     far[1] = -near[1]
     k1 = l1 + l2 * c2
     k2 = l2 * s2
-    temp = at2(k2, k1)
-    near[0] = at2(goal[1], goal[0]) - temp
-    far[0] = at2(goal[1], goal[0]) + temp
+    temp = np.arctan2(k2, k1)
+    near[0] = np.arctan2(goal[1], goal[0]) - temp
+    far[0] = np.arctan2(goal[1], goal[0]) + temp
     near[2] = goal[2] - near[0] - near[1]
     far[2] = goal[2] - far[0] - far[1]
     for i in range(3):
@@ -121,9 +133,9 @@ def solve(trels, current, near, far):
     wrelt = np.zeros_like(trelb)
     wrelb = np.zeros_like(trelb)
     tmult(srelb, trels, trelb)
-    tinvert(trelw, wrelt)
+    wrelt = tinvert(wrelt)
     tmult(trelb, wrelt, wrelb)
-    return invk_in(wrelb, current, near, far)
+    return invkin(wrelb, current, near, far)
 
 # Function to compute the trajectory
 def where(theta, trels):
@@ -131,18 +143,6 @@ def where(theta, trels):
     tmult(wrelb, trelw, trelb)
     tmult(brels, trelb, trels)
 
-# Function to initialize data
-def init_data():
-    global l1, l2, trelwuser, srelbuser, trelw, srelb
-    s = 0.3333  # set time scaling constant
-
-    l2 = 0.5
-    trelwuser = np.array([0.1, 0.2, 30.0])
-    srelbuser = np.array([0.0, 0.0, 0.0])
-    utoi(srelbuser, srelb)
-    tinvert(srelb, brels)
-    utoi(trelwuser, trelw)
-    tinvert(trelw, wrelt)
 
 # Function to compute cubic coefficients
 def cub_coeff(th0, thf, thdot0, thdotf):
@@ -216,7 +216,10 @@ def plot_path_matplotlib():
     plt.grid(True, linestyle='--', linewidth=0.5)
     plt.show()
 
-init_data()
+utoi(srelbuser, srelb)
+tinvert(srelb,brels)
+utoi(trelwuser,trelw)
+tinvert(trelw,wrelt)
 npnt = 1
 current = np.zeros(3)
 input('Posição inicial: (x, y, phi): ')
@@ -241,4 +244,3 @@ for i in range(1, npnt):
 
 run_path(path, npnt)
 plot_path_matplotlib()
-ans = input('Would you like to do some more? (y/n): ')
